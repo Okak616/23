@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Фортуна</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --gold:#d4a017;--gold-b:#ffd700;--gold-d:#8b6914;
+    --felt-1:#0a2818;--felt-2:#051410;
+    --red:#a4161a;--red-d:#5c0508;
+  }
+  body{
+    background:radial-gradient(ellipse at 50% 0%,#0f3a22 0%,var(--felt-1) 35%,var(--felt-2) 100%);
+    color:#fff;overflow:hidden;min-height:100vh;
+    font-family:Georgia,serif;user-select:none;background-attachment:fixed;
+  }
+  #particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .particle{
+    position:absolute;bottom:-40px;width:6px;height:6px;
+    background:radial-gradient(circle,rgba(255,215,0,.7),rgba(255,215,0,.05));
+    border-radius:50%;animation:floatUp linear infinite
+  }
+  @keyframes floatUp{
+    0%{transform:translateY(0);opacity:0}15%{opacity:.8}
+    85%{opacity:.4}100%{transform:translateY(-120vh) translateX(30px);opacity:0}
+  }
+  .container{position:relative;z-index:10;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+  .screen{display:none;width:100%;max-width:480px}
+  .screen.active{display:block;animation:fi .35s ease}
+  @keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+  .title{
+    font-size:42px;text-align:center;font-weight:900;
+    background:linear-gradient(180deg,#fff5c2 0%,var(--gold-b) 40%,var(--gold-d) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    letter-spacing:6px;text-shadow:0 0 40px rgba(212,160,23,.4);margin-bottom:4px
+  }
+  .subtitle{text-align:center;color:#7a8a80;margin-bottom:22px;font-size:11px;letter-spacing:6px;text-transform:uppercase}
+  .divider{height:1px;margin:14px auto;width:80%;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.6}
+  .input-box{
+    background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.75));
+    border:1.5px solid rgba(212,160,23,.4);border-radius:18px;padding:16px 18px;margin-bottom:12px;
+    box-shadow:inset 0 0 30px rgba(0,0,0,.6),0 0 30px rgba(0,0,0,.3)
+  }
+  .input-label{color:var(--gold);font-size:10px;letter-spacing:4px;text-transform:uppercase;margin-bottom:6px;text-align:center}
+  .bet-input{
+    width:100%;background:transparent;border:none;color:#fff;
+    font-size:38px;font-weight:900;text-align:center;outline:none;
+    font-family:'Courier New',monospace;letter-spacing:2px
+  }
+  .bet-input::-webkit-outer-spin-button,.bet-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .quick-bets{display:flex;gap:6px;margin-top:10px}
+  .quick-bet{
+    flex:1;padding:9px 4px;border-radius:9px;
+    background:rgba(212,160,23,.06);border:1px solid rgba(212,160,23,.3);
+    color:var(--gold);font-size:13px;font-weight:bold;cursor:pointer;
+    transition:.15s;font-family:Georgia,serif
+  }
+  .quick-bet:active{background:rgba(212,160,23,.25);transform:scale(.96)}
+  .game-select{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .game-select-btn{
+    padding:18px 8px 14px;border-radius:14px;
+    background:linear-gradient(180deg,rgba(20,10,10,.85),rgba(5,5,5,.95));
+    border:1.5px solid rgba(212,160,23,.35);color:#fff;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:5px;
+    font-family:Georgia,serif;transition:.15s;box-shadow:inset 0 0 20px rgba(0,0,0,.8)
+  }
+  .game-select-btn:active{
+    background:linear-gradient(180deg,rgba(60,20,20,.9),rgba(30,5,5,.95));
+    transform:scale(.97);border-color:var(--gold)
+  }
+  .game-select-name{font-size:14px;font-weight:900;letter-spacing:2px;color:var(--gold-b);text-shadow:0 0 10px rgba(212,160,23,.5);text-align:center}
+  .game-select-sub{font-size:9px;color:#7a6a3a;letter-spacing:2px;text-align:center}
+  .bet-display{text-align:center;color:var(--gold);margin-bottom:12px;font-size:11px;letter-spacing:4px;text-transform:uppercase}
+  .bet-display .amount{font-weight:900;font-size:20px;color:var(--gold-b);font-family:'Courier New',monospace}
+  /* slots */
+  .slot-machine{
+    background:linear-gradient(180deg,#1a0a0a,#050505);
+    border:2px solid rgba(212,160,23,.5);border-radius:24px;
+    padding:26px 18px 22px;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.95),0 0 50px rgba(212,160,23,.1);
+    transition:box-shadow .3s,border-color .3s
+  }
+  .slot-machine.lose{border-color:#7a0000;box-shadow:inset 0 0 60px rgba(0,0,0,.95),0 0 60px rgba(255,0,0,.35)}
+  .reels{display:flex;justify-content:center;gap:10px}
+  .reel{
+    width:86px;height:126px;border-radius:12px;
+    background:radial-gradient(circle at 50% 30%,#1a1a1a 0%,#000 100%);
+    border:2px solid #2a1a0a;display:flex;align-items:center;justify-content:center;
+    font-family:'Courier New',monospace;font-size:76px;font-weight:900;
+    color:#ff5a3c;text-shadow:0 0 22px rgba(255,90,60,.9);
+    box-shadow:inset 0 0 30px #000,inset 0 14px 22px rgba(0,0,0,.9);
+    transition:transform .15s,color .2s,border-color .2s
+  }
+  .reel.spinning{color:var(--gold-b);text-shadow:0 0 30px rgba(255,215,0,1);animation:flick .08s infinite}
+  .reel.lose{color:#ff0000;border-color:#ff0000;text-shadow:0 0 30px rgba(255,0,0,1);animation:loseShake .3s}
+  @keyframes flick{50%{opacity:.5}}
+  @keyframes loseShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .lever-area{display:flex;justify-content:center;margin-top:24px}
+  .lever{
+    width:52px;height:104px;border-radius:26px;
+    background:linear-gradient(180deg,#2a1a0a,#0a0505);
+    border:2px solid #4a3010;position:relative;cursor:pointer;
+    box-shadow:inset 0 4px 10px rgba(0,0,0,.8)
+  }
+  .lever-knob{
+    width:48px;height:48px;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,#ff8060,#a4161a 60%,#5c0508);
+    position:absolute;top:-26px;left:0;
+    box-shadow:0 6px 20px rgba(164,22,26,.8),inset 0 -4px 10px rgba(0,0,0,.4),inset 0 4px 8px rgba(255,255,255,.2);
+    transition:top .25s cubic-bezier(.4,1.6,.6,1)
+  }
+  .lever.pulled .lever-knob{top:58px}
+  /* gifts */
+  .gift-stage{
+    display:flex;justify-content:center;align-items:flex-end;gap:16px;
+    padding:70px 10px 30px;min-height:380px;position:relative;
+    background:linear-gradient(180deg,#0a1a10,#020604);
+    border:1.5px solid rgba(212,160,23,.4);border-radius:22px;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.9);overflow:hidden;transition:border-color .3s
+  }
+  .gift-stage.lose{border-color:#7a0000;box-shadow:inset 0 0 60px rgba(0,0,0,.9),0 0 60px rgba(255,0,0,.35)}
+  .gift{width:94px;height:145px;position:relative;cursor:pointer;transform-origin:center bottom;animation:gAppear .6s cubic-bezier(.34,1.56,.64,1) backwards;transition:transform .2s}
+  .gift:nth-child(1){animation-delay:.05s}.gift:nth-child(2){animation-delay:.18s}.gift:nth-child(3){animation-delay:.31s}
+  @keyframes gAppear{from{transform:translateY(60px) scale(.3) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
+  .gift-body{
+    position:absolute;bottom:0;left:0;right:0;height:96px;border-radius:5px 5px 10px 10px;
+    background:linear-gradient(135deg,#b0141c 0%,#7a0a10 50%,#3a0408 100%);
+    box-shadow:inset -12px -12px 24px rgba(0,0,0,.5),inset 12px 12px 24px rgba(255,255,255,.15),0 12px 30px rgba(0,0,0,.7)
+  }
+  .gift-body::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:16px;transform:translateX(-50%);background:linear-gradient(90deg,#5a3a08,#b8860b 20%,#ffe066 50%,#b8860b 80%,#5a3a08);box-shadow:0 0 8px rgba(255,215,0,.4)}
+  .gift-lid{
+    position:absolute;bottom:94px;left:-8px;right:-8px;height:26px;border-radius:5px;z-index:2;
+    background:linear-gradient(135deg,#d42030 0%,#a4161a 50%,#5c0508 100%);
+    box-shadow:0 4px 12px rgba(0,0,0,.6),inset 0 -4px 8px rgba(0,0,0,.3),inset 0 4px 8px rgba(255,255,255,.2)
+  }
+  .gift-lid::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:16px;transform:translateX(-50%);background:linear-gradient(90deg,#5a3a08,#b8860b 20%,#ffe066 50%,#b8860b 80%,#5a3a08)}
+  .gift-bow{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);width:58px;height:24px;z-index:3}
+  .gift-bow::before,.gift-bow::after{content:'';position:absolute;bottom:0;width:32px;height:24px;background:radial-gradient(circle at 35% 30%,#ffe066,#b8860b 60%,#5a3a08);border-radius:50% 50% 50% 50%/70% 70% 30% 30%;box-shadow:inset -3px -4px 8px rgba(0,0,0,.5),inset 3px 3px 6px rgba(255,255,255,.3)}
+  .gift-bow::before{left:0;transform:rotate(-25deg);transform-origin:bottom right}
+  .gift-bow::after{right:0;transform:rotate(25deg);transform-origin:bottom left}
+  .gift-knot{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe066,#a67a10 70%,#5a3a08);z-index:4}
+  .gift.slide-left{animation:slL .75s forwards cubic-bezier(.5,0,.2,1)}
+  .gift.slide-right{animation:slR .75s forwards cubic-bezier(.5,0,.2,1)}
+  .gift.slide-back{animation:slB .75s forwards cubic-bezier(.5,0,.2,1)}
+  @keyframes slL{to{transform:translate(-280px,40px) rotate(-45deg);opacity:0}}
+  @keyframes slR{to{transform:translate(280px,40px) rotate(45deg);opacity:0}}
+  @keyframes slB{to{transform:translateY(80px) scale(.2) rotate(-15deg);opacity:0}}
+  .gift.picked{animation:gShake .5s ease-in-out 2}
+  @keyframes gShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px) rotate(-3deg)}40%{transform:translateX(7px) rotate(3deg)}60%{transform:translateX(-5px) rotate(-2deg)}80%{transform:translateX(5px) rotate(2deg)}}
+  .gift.opening .gift-lid{animation:lidFly .9s forwards cubic-bezier(.3,-.3,.5,1)}
+  @keyframes lidFly{0%{transform:none;opacity:1}40%{transform:translate(10px,-70px) rotate(20deg);opacity:1}100%{transform:translate(40px,-180px) rotate(70deg);opacity:0}}
+  .gift.opening .gift-bow,.gift.opening .gift-knot{animation:bowFly .9s forwards cubic-bezier(.3,-.3,.5,1)}
+  @keyframes bowFly{0%{transform:translate(-50%,0);opacity:1}100%{transform:translate(-50%,-220px) rotate(180deg);opacity:0}}
+  .gift-flash{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,#fff3a0,#ffd700,transparent 70%);opacity:0;pointer-events:none}
+  .gift.opening .gift-flash{animation:gFlash .9s forwards}
+  @keyframes gFlash{0%{opacity:0;transform:translateX(-50%) scale(.3)}30%{opacity:1;transform:translateX(-50%) scale(4)}100%{opacity:0;transform:translateX(-50%) scale(6)}}
+  .prize-fly{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-family:'Courier New',monospace;font-size:30px;font-weight:900;color:var(--gold-b);text-shadow:0 0 25px rgba(255,215,0,1),0 0 50px rgba(255,180,0,.7);pointer-events:none;z-index:100;animation:prizeOut 1.2s forwards cubic-bezier(.2,1,.3,1)}
+  @keyframes prizeOut{0%{transform:translate(-50%,0) scale(.2);opacity:0}40%{opacity:1;transform:translate(-50%,-90px) scale(1.4)}100%{transform:translate(-50%,-260px) scale(1);opacity:0}}
+  /* lotto */
+  .lotto-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:20px 16px;background:linear-gradient(180deg,#0a1a10,#020604);border:1.5px solid rgba(212,160,23,.4);border-radius:22px;box-shadow:inset 0 0 60px rgba(0,0,0,.9);transition:border-color .3s}
+  .lotto-grid.lose{border-color:#7a0000;box-shadow:inset 0 0 60px rgba(0,0,0,.9),0 0 60px rgba(255,0,0,.35)}
+  .lotto-card{aspect-ratio:1/1.15;border-radius:12px;background:linear-gradient(135deg,#1a0a0a,#0a0505);border:1.5px solid rgba(212,160,23,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;perspective:600px}
+  .lotto-card:active:not(.opened){transform:scale(.94);border-color:var(--gold)}
+  .lotto-back,.lotto-front{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;transition:transform .6s cubic-bezier(.4,1.3,.6,1)}
+  .lotto-back{transform:rotateY(0);background:repeating-linear-gradient(45deg,rgba(212,160,23,.08) 0 6px,transparent 6px 14px),linear-gradient(135deg,#1a0a0a,#0a0505)}
+  .lotto-back::after{content:'?';font-size:44px;font-weight:900;color:rgba(212,160,23,.4);font-family:'Courier New',monospace}
+  .lotto-front{transform:rotateY(180deg);background:radial-gradient(circle,#1a0a0a 0%,#050505 100%);flex-direction:column;gap:4px}
+  .lotto-card.opened .lotto-back{transform:rotateY(180deg)}
+  .lotto-card.opened .lotto-front{transform:rotateY(360deg)}
+  .lotto-symbol{font-family:Georgia,serif;font-size:46px;font-weight:900;line-height:1}
+  .lotto-card.prize .lotto-front{background:radial-gradient(circle,#2a1a02 0%,#0a0505 100%);box-shadow:inset 0 0 30px rgba(255,215,0,.25)}
+  .lotto-card.prize .lotto-symbol{color:var(--gold-b);text-shadow:0 0 20px rgba(255,215,0,1),0 0 40px rgba(255,180,0,.6)}
+  .lotto-card.blank .lotto-symbol{color:#3a3a3a}
+  .lotto-status{text-align:center;color:#7a8a80;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-top:14px;min-height:16px}
+  /* quiz */
+  .quiz-intro{padding:36px 24px;text-align:center;background:linear-gradient(180deg,#0a1a10,#020604);border:1.5px solid rgba(212,160,23,.4);border-radius:22px;box-shadow:inset 0 0 60px rgba(0,0,0,.9)}
+  .quiz-intro-title{font-size:20px;letter-spacing:4px;margin-bottom:8px;color:var(--gold-b)}
+  .quiz-intro-sub{font-size:12px;color:#7a8a80;letter-spacing:2px;margin-bottom:22px}
+  .quiz-levels{display:flex;flex-direction:column;gap:10px}
+  .quiz-level-btn{padding:16px 20px;background:linear-gradient(180deg,rgba(20,10,10,.9),rgba(5,5,5,.95));border:1.5px solid rgba(212,160,23,.4);border-radius:12px;color:#fff;cursor:pointer;font-family:Georgia,serif;transition:.15s;display:flex;justify-content:space-between;align-items:center}
+  .quiz-level-btn:active{background:linear-gradient(180deg,rgba(60,20,20,.9),rgba(30,5,5,.95));transform:scale(.98);border-color:var(--gold)}
+  .quiz-level-name{font-size:14px;letter-spacing:3px;color:var(--gold-b);font-weight:900}
+  .quiz-level-info{font-size:12px;color:#b8a878;letter-spacing:1px;font-weight:bold}
+  .quiz-progress{height:4px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden;margin-bottom:16px;border:1px solid rgba(212,160,23,.2)}
+  .quiz-progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-d),var(--gold-b));transition:width .4s cubic-bezier(.4,0,.2,1)}
+  .quiz-q-info{text-align:center;color:#7a8a80;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px}
+  .quiz-question{padding:24px 18px;background:linear-gradient(180deg,#0a1a10,#020604);border:1.5px solid rgba(212,160,23,.4);border-radius:18px;font-size:16px;line-height:1.5;color:#f0e8d0;margin-bottom:14px;box-shadow:inset 0 0 40px rgba(0,0,0,.8);min-height:100px;display:flex;align-items:center;justify-content:center;text-align:center}
+  .quiz-answers{display:flex;flex-direction:column;gap:9px}
+  .quiz-answer{padding:14px 16px;background:linear-gradient(180deg,rgba(20,10,10,.9),rgba(5,5,5,.95));border:1.5px solid rgba(212,160,23,.3);border-radius:11px;color:#e0d5b8;cursor:pointer;font-family:Georgia,serif;font-size:14px;text-align:left;transition:.15s;letter-spacing:.5px}
+  .quiz-answer:active:not(:disabled){transform:scale(.98);border-color:var(--gold)}
+  .quiz-answer:disabled{cursor:default;opacity:.7}
+  .quiz-answer.correct{background:linear-gradient(180deg,rgba(10,60,30,.95),rgba(5,30,15,.95));border-color:#00a35e;color:#b8ffd0}
+  .quiz-answer.wrong{background:linear-gradient(180deg,rgba(60,10,10,.95),rgba(30,5,5,.95));border-color:#a4161a;color:#ffb8b8}
+  /* bingo — компактный и с кнопкой СТАРТ вверху */
+  .bingo-start-btn{
+    width:100%;padding:14px;border:none;border-radius:14px;
+    background:linear-gradient(180deg,#d4a017,#8b6914);
+    color:#1a0a0a;font-family:Georgia,serif;font-size:16px;font-weight:900;
+    letter-spacing:5px;cursor:pointer;
+    box-shadow:0 0 25px rgba(212,160,23,.5),inset 0 1px 0 rgba(255,255,255,.3);
+    transition:.15s;margin-bottom:10px
+  }
+  .bingo-start-btn:active{transform:translateY(2px)}
+  .bingo-start-btn:disabled{opacity:.4;cursor:default;transform:none}
+  .bingo-jackpot{
+    text-align:center;padding:8px 12px;margin-bottom:10px;
+    background:linear-gradient(180deg,rgba(212,160,23,.15),rgba(212,160,23,.05));
+    border:1.5px solid var(--gold);border-radius:12px;
+    box-shadow:inset 0 0 25px rgba(212,160,23,.15),0 0 25px rgba(212,160,23,.2)
+  }
+  .bingo-jackpot-label{font-size:9px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:2px}
+  .bingo-jackpot-value{font-family:'Courier New',monospace;font-size:22px;font-weight:900;color:var(--gold-b);text-shadow:0 0 15px rgba(255,215,0,.6)}
+  .bingo-wrap{
+    padding:10px;
+    background:linear-gradient(180deg,#0a1a10,#020604);
+    border:1.5px solid rgba(212,160,23,.4);border-radius:18px;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.9);
+    transition:border-color .3s
+  }
+  .bingo-wrap.lose{border-color:#7a0000;box-shadow:inset 0 0 60px rgba(0,0,0,.9),0 0 60px rgba(255,0,0,.35)}
+  .bingo-card{
+    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;
+    max-width:340px;margin:0 auto
+  }
+  .bingo-cell{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#1a0a0a,#0a0505);
+    border:1px solid rgba(212,160,23,.25);border-radius:7px;
+    font-family:'Courier New',monospace;font-weight:900;color:#b8a878;
+    font-size:14px;transition:.25s;min-height:0
+  }
+  .bingo-cell.marked{background:radial-gradient(circle,#3a2a02 0%,#1a0a00 100%);color:var(--gold-b);border-color:var(--gold-b);text-shadow:0 0 10px rgba(255,215,0,.7);box-shadow:inset 0 0 15px rgba(255,215,0,.3);transform:scale(1.03)}
+  .bingo-cell.line-win{background:radial-gradient(circle,#00c86e 0%,#005c30 100%);color:#fff;border-color:#00ff88;box-shadow:0 0 20px rgba(0,200,100,.7)}
+  .bingo-balls{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:10px;min-height:28px}
+  .bingo-ball{
+    width:28px;height:28px;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,#ffe680,#d4a017 60%,#8b6914);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Courier New',monospace;font-weight:900;color:#1a0a00;font-size:11px;
+    animation:bAppear .4s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 -2px 4px rgba(0,0,0,.2),inset 0 2px 4px rgba(255,255,255,.3)
+  }
+  @keyframes bAppear{from{transform:scale(0) rotate(-180deg);opacity:0}to{transform:none;opacity:1}}
+  .bingo-status{text-align:center;color:#7a8a80;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-top:8px;min-height:14px}
+  /* RPS */
+  .rps-arena{padding:20px 14px;background:linear-gradient(180deg,#0a1a10,#020604);border:1.5px solid rgba(212,160,23,.4);border-radius:22px;box-shadow:inset 0 0 60px rgba(0,0,0,.9)}
+  .rps-score{display:flex;justify-content:space-between;padding:10px 16px;margin-bottom:16px;background:rgba(0,0,0,.4);border-radius:12px;font-family:'Courier New',monospace;font-weight:900}
+  .rps-score-side{text-align:center;flex:1}
+  .rps-score-label{font-size:10px;color:#7a8a80;letter-spacing:2px;margin-bottom:2px;font-family:Georgia,serif}
+  .rps-score-value{font-size:26px;color:var(--gold-b);text-shadow:0 0 12px rgba(255,215,0,.5)}
+  .rps-round-info{text-align:center;color:#7a8a80;font-size:11px;letter-spacing:4px;text-transform:uppercase;margin-bottom:16px;font-family:Georgia,serif}
+  .rps-battle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px}
+  .rps-side{flex:1;aspect-ratio:1;max-width:130px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a0a0a,#0a0505);border:2px solid rgba(212,160,23,.35);border-radius:16px;transition:.3s;position:relative;overflow:hidden}
+  .rps-side.winner{border-color:#00ff88;box-shadow:0 0 30px rgba(0,200,100,.5)}
+  .rps-side.loser{border-color:#7a0000;opacity:.6}
+  .rps-side .rps-move{font-family:Georgia,serif;font-size:14px;font-weight:900;letter-spacing:2px;color:var(--gold-b);text-align:center;padding:8px}
+  .rps-side .rps-move.empty{color:#3a3a3a;font-size:38px}
+  .rps-side.dealing .rps-move{animation:rpsShuffle .15s infinite}
+  @keyframes rpsShuffle{50%{transform:translateY(-4px) rotate(-3deg)}}
+  .rps-vs{font-family:Georgia,serif;font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;text-shadow:0 0 15px rgba(212,160,23,.5)}
+  .rps-buttons{display:flex;gap:8px}
+  .rps-btn{flex:1;padding:16px 8px;border-radius:12px;background:linear-gradient(180deg,rgba(20,10,10,.9),rgba(5,5,5,.95));border:1.5px solid rgba(212,160,23,.4);color:#fff;cursor:pointer;font-family:Georgia,serif;font-weight:900;font-size:12px;letter-spacing:2px;transition:.15s;color:var(--gold-b)}
+  .rps-btn:active:not(:disabled){transform:scale(.96);border-color:var(--gold-b)}
+  .rps-btn:disabled{opacity:.4;cursor:default}
+  /* flash & result */
+  .flash{position:fixed;inset:0;background:var(--gold-b);opacity:0;pointer-events:none;z-index:150}
+  .flash.active{animation:flAnim .5s}
+  .flash.lose{background:#ff0000}
+  @keyframes flAnim{50%{opacity:.85}}
+  .result{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);z-index:200}
+  .result.show{display:flex}
+  .result-content{text-align:center;padding:40px 30px;animation:pop .5s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes pop{from{transform:scale(.3);opacity:0}}
+  .result-label{font-size:13px;color:#b8a878;margin-bottom:12px;letter-spacing:5px;text-transform:uppercase}
+  .result-label.lose{color:#ff5a3c}
+  .result-amount{font-size:72px;font-weight:900;font-family:'Courier New',monospace;background:linear-gradient(180deg,#fff5c2 0%,var(--gold-b) 45%,var(--gold-d) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 40px rgba(255,215,0,.6));letter-spacing:2px}
+  .result-amount.lose{background:linear-gradient(180deg,#ff8080,#7a0000);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 0 40px rgba(255,0,0,.5))}
+  .result-sub{margin-top:10px;font-size:11px;color:#6a5a3a;letter-spacing:3px;text-transform:uppercase}
+  .continue-btn{margin-top:26px;padding:15px 44px;background:linear-gradient(180deg,#d4a017,#8b6914);border:1.5px solid #ffe066;border-radius:12px;color:#1a0a0a;font-size:14px;font-weight:900;letter-spacing:4px;cursor:pointer;box-shadow:0 0 25px rgba(212,160,23,.5),inset 0 1px 0 rgba(255,255,255,.3);font-family:Georgia,serif}
+  .continue-btn:active{transform:translateY(2px)}
+  .exit-btn{position:fixed;top:18px;right:18px;width:44px;height:44px;border-radius:50%;background:linear-gradient(180deg,rgba(20,10,10,.9),rgba(5,5,5,.95));border:1.5px solid rgba(212,160,23,.6);color:var(--gold);font-size:18px;font-weight:bold;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:250;transition:.2s;font-family:Georgia,serif}
+  .exit-btn.show{display:flex}
+  .exit-btn:active{background:rgba(212,160,23,.3);transform:scale(.92)}
+</style>
+</head>
+<body>
+
+<div id="particles"></div>
+<div class="exit-btn" id="exitBtn">X</div>
+<div class="flash" id="flash"></div>
+
+<div class="container">
+  <div class="screen active" id="menuScreen">
+    <h1 class="title">ФОРТУНА</h1>
+    <div class="subtitle">ИГРОВОЙ АТТРАКЦИОН</div>
+    <div class="input-box">
+      <div class="input-label">Ваша ставка</div>
+      <input type="number" class="bet-input" id="betInput" value="10" min="0" step="any" inputmode="decimal">
+      <div class="quick-bets">
+        <button class="quick-bet" data-bet="10">10</button>
+        <button class="quick-bet" data-bet="50">50</button>
+        <button class="quick-bet" data-bet="100">100</button>
+        <button class="quick-bet" data-bet="500">500</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="game-select">
+      <button class="game-select-btn" data-game="slots"><span class="game-select-name">СЛОТЫ</span><span class="game-select-sub">000 — 999</span></button>
+      <button class="game-select-btn" data-game="gifts"><span class="game-select-name">ПОДАРКИ</span><span class="game-select-sub">3 КОРОБКИ</span></button>
+      <button class="game-select-btn" data-game="lotto"><span class="game-select-name">ЛОТЕРЕЯ</span><span class="game-select-sub">МГНОВЕННАЯ</span></button>
+      <button class="game-select-btn" data-game="quiz"><span class="game-select-name">УМНИК</span><span class="game-select-sub">5 / 10 / 20</span></button>
+      <button class="game-select-btn" data-game="bingo"><span class="game-select-name">БИНГО</span><span class="game-select-sub">ДЖЕКПОТ</span></button>
+      <button class="game-select-btn" data-game="rps"><span class="game-select-name">КНБ</span><span class="game-select-sub">3 РАУНДА</span></button>
+    </div>
+  </div>
+
+  <div class="screen" id="slotsScreen">
+    <div class="bet-display">Ставка: <span class="amount" id="slotsBetDisplay">10</span> руб.</div>
+    <div class="slot-machine" id="slotMachine">
+      <div class="reels"><div class="reel" id="reel0">0</div><div class="reel" id="reel1">0</div><div class="reel" id="reel2">0</div></div>
+      <div class="lever-area"><div class="lever" id="lever"><div class="lever-knob"></div></div></div>
+    </div>
+  </div>
+
+  <div class="screen" id="giftsScreen">
+    <div class="bet-display">Ставка: <span class="amount" id="giftsBetDisplay">10</span> руб.</div>
+    <div class="gift-stage" id="giftStage"></div>
+  </div>
+
+  <div class="screen" id="lottoScreen">
+    <div class="bet-display">Ставка: <span class="amount" id="lottoBetDisplay">10</span> руб.</div>
+    <div class="lotto-grid" id="lottoGrid"></div>
+    <div class="lotto-status" id="lottoStatus">Выберите три карты</div>
+  </div>
+
+  <div class="screen" id="quizScreen">
+    <div class="bet-display">Ставка: <span class="amount" id="quizBetDisplay">10</span> руб.</div>
+    <div id="quizContainer"></div>
+  </div>
+
+  <!-- БИНГО: кнопка СТАРТ сверху, всё компактно -->
+  <div class="screen" id="bingoScreen">
+    <div class="bet-display">Ставка: <span class="amount" id="bingoBetDisplay">10</span> руб.</div>
+    <button class="bingo-start-btn" id="bingoStart">СТАРТ</button>
+    <div class="bingo-jackpot">
+      <div class="bingo-jackpot-label">Прогрессивный джекпот</div>
+      <div class="bingo-jackpot-value" id="jackpotValue">100 руб.</div>
+    </div>
+    <div class="bingo-wrap" id="bingoWrap">
+      <div class="bingo-card" id="bingoCard"></div>
+      <div class="bingo-balls" id="bingoBalls"></div>
+      <div class="bingo-status" id="bingoStatus">Нажмите СТАРТ</div>
+    </div>
+  </div>
+
+  <div class="screen" id="rpsScreen">
+    <div class="bet-display">Ставка: <span class="amount" id="rpsBetDisplay">10</span> руб.</div>
+    <div class="rps-arena">
+      <div class="rps-score">
+        <div class="rps-score-side"><div class="rps-score-label">ВЫ</div><div class="rps-score-value" id="rpsPlayerScore">0</div></div>
+        <div class="rps-score-side"><div class="rps-score-label">СОПЕРНИК</div><div class="rps-score-value" id="rpsBotScore">0</div></div>
+      </div>
+      <div class="rps-round-info" id="rpsRoundInfo">Раунд 1 / 3</div>
+      <div class="rps-battle">
+        <div class="rps-side" id="rpsPlayerSide"><div class="rps-move empty">?</div></div>
+        <div class="rps-vs">VS</div>
+        <div class="rps-side" id="rpsBotSide"><div class="rps-move empty">?</div></div>
+      </div>
+      <div class="rps-buttons">
+        <button class="rps-btn" data-move="rock">КАМЕНЬ</button>
+        <button class="rps-btn" data-move="scissors">НОЖНИЦЫ</button>
+        <button class="rps-btn" data-move="paper">БУМАГА</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="result" id="result">
+  <div class="result-content">
+    <div class="result-label" id="resultLabel">ПОБЕДА</div>
+    <div class="result-amount" id="resultAmount">0</div>
+    <div class="result-sub" id="resultSub"></div>
+    <button class="continue-btn" id="continueBtn">ПРОДОЛЖИТЬ</button>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.expand(); tg.ready(); tg.setHeaderColor('#051410'); }
+
+const particlesEl = document.getElementById('particles');
+for (let i = 0; i < 28; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const s = 3 + Math.random() * 6;
+  p.style.width = s + 'px'; p.style.height = s + 'px';
+  p.style.left = Math.random() * 100 + '%';
+  p.style.animationDuration = (14 + Math.random() * 18) + 's';
+  p.style.animationDelay = (-Math.random() * 30) + 's';
+  p.style.opacity = .3 + Math.random() * .5;
+  particlesEl.appendChild(p);
+}
+
+const $ = id => document.getElementById(id);
+const menuScreen = $('menuScreen');
+const allScreens = ['slots','gifts','lotto','quiz','bingo','rps'].map(g => $(g+'Screen'));
+const betInput = $('betInput');
+const exitBtn = $('exitBtn');
+const result = $('result');
+const resultLabel = $('resultLabel');
+const resultAmount = $('resultAmount');
+const resultSub = $('resultSub');
+const continueBtn = $('continueBtn');
+const flash = $('flash');
+const slotMachine = $('slotMachine');
+const lever = $('lever');
+const giftStage = $('giftStage');
+const lottoGrid = $('lottoGrid');
+const lottoStatus = $('lottoStatus');
+const quizContainer = $('quizContainer');
+const bingoCard = $('bingoCard');
+const bingoBalls = $('bingoBalls');
+const bingoStatus = $('bingoStatus');
+const bingoWrap = $('bingoWrap');
+const jackpotValue = $('jackpotValue');
+const reels = [$('reel0'), $('reel1'), $('reel2')];
+
+let currentBet = 10;
+let isPlaying = false;
+let activeGame = null;
+let gameCleanup = null;
+
+let JACKPOT = parseFloat(localStorage.getItem('fortuna_jackpot') || '100');
+function updateJackpotDisplay() { jackpotValue.textContent = Math.round(JACKPOT) + ' руб.'; }
+updateJackpotDisplay();
+
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AC();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playTone(freq, dur, type='triangle', vol=.2, delay=0, slideTo=null) {
+  const ctx = getAudioCtx();
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(freq, t0);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + .01);
+  g.gain.exponentialRampToValueAtTime(.001, t0 + dur);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(t0); osc.stop(t0 + dur + .05);
+}
+function playWin(big) {
+  const notes = big ? [523,659,784,1047,1319] : [523,659,784,1047];
+  notes.forEach((f,i) => playTone(f, .4, 'triangle', .22, i * .09));
+  const cnt = big ? 10 : 5;
+  for (let i=0; i<cnt; i++) playTone(1800 + Math.random()*900, .15, 'sine', .09, .35 + Math.random()*.6);
+}
+function playLoss() { playTone(260,.6,'sawtooth',.16,0,70); playTone(180,.6,'sawtooth',.1,0,55); }
+function playTick() { playTone(900 + Math.random()*300, .05, 'square', .06); }
+function playLever() { playTone(420,.18,'square',.07,0,140); }
+function playWhoosh() { playTone(200,.3,'sine',.1,0,900); }
+function playCorrect() { playTone(660,.15,'triangle',.2); playTone(880,.2,'triangle',.2,.1); }
+function playWrong() { playTone(220,.35,'sawtooth',.2); }
+
+function fireConfetti(big) {
+  const count = big ? 200 : 100;
+  const colors = ['#ffd700','#ff8c00','#ff006e','#8338ec','#3a86ff','#06ffa5','#fff','#d4a017'];
+  const base = { origin: { y: .65 }, zIndex: 9999, colors };
+  confetti({ ...base, particleCount: Math.floor(count*.25), spread:30, startVelocity:60 });
+  confetti({ ...base, particleCount: Math.floor(count*.2), spread:70 });
+  confetti({ ...base, particleCount: Math.floor(count*.35), spread:110, decay:.91, scalar:.85 });
+  setTimeout(() => {
+    confetti({ ...base, particleCount:count, angle:60, spread:60, origin:{x:0,y:.75} });
+    confetti({ ...base, particleCount:count, angle:120, spread:60, origin:{x:1,y:.75} });
+  }, 260);
+  if (big) setTimeout(() => {
+    confetti({ ...base, particleCount:count, spread:160, startVelocity:55, origin:{x:.5,y:0}, gravity:.6 });
+  }, 520);
+}
+
+function showResult(win, multiplier, label) {
+  if (multiplier > 0) {
+    flash.classList.remove('lose'); flash.classList.add('active');
+    fireConfetti(multiplier >= 3); playWin(multiplier >= 3);
+    setTimeout(() => flash.classList.remove('active'), 500);
+    resultLabel.classList.remove('lose');
+    resultLabel.textContent = label || 'ПОБЕДА';
+    resultAmount.classList.remove('lose');
+    resultAmount.textContent = '+' + win + ' руб.';
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  } else {
+    flash.classList.add('lose','active'); playLoss();
+    setTimeout(() => flash.classList.remove('active','lose'), 500);
+    resultLabel.classList.add('lose');
+    resultLabel.textContent = 'ПОПРОБУЙТЕ СНОВА';
+    resultAmount.classList.add('lose');
+    resultAmount.textContent = '0 руб.';
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+  }
+  result.classList.add('show');
+}
+continueBtn.addEventListener('click', () => {
+  result.classList.remove('show');
+  slotMachine.classList.remove('lose');
+  giftStage.classList.remove('lose');
+  lottoGrid.classList.remove('lose');
+  bingoWrap.classList.remove('lose');
+});
+
+document.querySelectorAll('.quick-bet').forEach(btn => {
+  btn.addEventListener('click', () => betInput.value = btn.dataset.bet);
+});
+
+document.querySelectorAll('.game-select-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const val = parseFloat(betInput.value);
+    if (!isFinite(val) || val < 0) {
+      if (tg?.showAlert) tg.showAlert('Введите корректную ставку'); else alert('Введите корректную ставку');
+      return;
+    }
+    currentBet = Math.round(val);
+    getAudioCtx();
+    JACKPOT += currentBet * 0.05;
+    localStorage.setItem('fortuna_jackpot', JACKPOT.toFixed(2));
+    updateJackpotDisplay();
+    openGame(btn.dataset.game);
+  });
+});
+
+exitBtn.addEventListener('click', () => {
+  if (isPlaying) return;
+  if (gameCleanup) { try { gameCleanup(); } catch(e){} gameCleanup = null; }
+  result.classList.remove('show');
+  allScreens.forEach(s => s.classList.remove('active'));
+  menuScreen.classList.add('active');
+  exitBtn.classList.remove('show');
+  activeGame = null;
+});
+
+function openGame(game) {
+  activeGame = game;
+  isPlaying = false;
+  if (gameCleanup) { try { gameCleanup(); } catch(e){} gameCleanup = null; }
+  menuScreen.classList.remove('active');
+  exitBtn.classList.add('show');
+  result.classList.remove('show');
+  allScreens.forEach(s => s.classList.remove('active'));
+
+  if (game === 'slots') {
+    $('slotsBetDisplay').textContent = currentBet;
+    slotMachine.classList.remove('lose');
+    reels.forEach(r => { r.classList.remove('lose'); r.textContent = '0'; });
+    $('slotsScreen').classList.add('active');
+  } else if (game === 'gifts') {
+    $('giftsBetDisplay').textContent = currentBet;
+    setupGifts(); $('giftsScreen').classList.add('active');
+  } else if (game === 'lotto') {
+    $('lottoBetDisplay').textContent = currentBet;
+    setupLotto(); $('lottoScreen').classList.add('active');
+  } else if (game === 'quiz') {
+    $('quizBetDisplay').textContent = currentBet;
+    setupQuizIntro(); $('quizScreen').classList.add('active');
+  } else if (game === 'bingo') {
+    $('bingoBetDisplay').textContent = currentBet;
+    setupBingo(); $('bingoScreen').classList.add('active');
+  } else if (game === 'rps') {
+    $('rpsBetDisplay').textContent = currentBet;
+    setupRPS(); $('rpsScreen').classList.add('active');
+  }
+}
+
+/* SLOTS */
+function evalSlots([a,b,c]) {
+  if (a===b && b===c) return { m: 3, name: 'ТРИ ОДИНАКОВЫХ · x3' };
+  if ((b===a+1 && c===b+1) || (b===a-1 && c===b-1)) return { m: 2, name: 'ПОСЛЕДОВАТЕЛЬНОСТЬ · x2' };
+  if (a===b || b===c || a===c) return { m: 1.6, name: 'ДВЕ ОДИНАКОВЫХ · x1.6' };
+  return { m: 0, name: '' };
+}
+lever.addEventListener('click', spinSlots);
+lever.addEventListener('touchstart', e => { e.preventDefault(); spinSlots(); }, {passive:false});
+
+async function spinSlots() {
+  if (isPlaying || activeGame !== 'slots') return;
+  isPlaying = true;
+  result.classList.remove('show');
+  slotMachine.classList.remove('lose');
+  reels.forEach(r => r.classList.remove('lose'));
+  lever.classList.add('pulled'); playLever();
+  setTimeout(() => lever.classList.remove('pulled'), 300);
+  const digits = [0,1,2].map(() => Math.floor(Math.random()*10));
+  reels.forEach(r => r.classList.add('spinning'));
+  for (let i = 0; i < 3; i++) { await spinReel(reels[i], digits[i], 1400 + i*500); playTick(); }
+  reels.forEach(r => r.classList.remove('spinning'));
+  const { m, name } = evalSlots(digits);
+  await new Promise(r => setTimeout(r, 250));
+  showResult(Math.round(currentBet * m), m, name);
+  isPlaying = false;
+}
+function spinReel(reel, finalDigit, duration) {
+  return new Promise(resolve => {
+    const start = Date.now();
+    const timer = setInterval(() => {
+      reel.textContent = Math.floor(Math.random()*10);
+      if (Date.now() - start >= duration) {
+        clearInterval(timer);
+        reel.textContent = finalDigit;
+        reel.style.transform = 'scale(1.18)';
+        setTimeout(() => reel.style.transform = 'scale(1)', 180);
+        resolve();
+      }
+    }, 45);
+  });
+}
+
+/* GIFTS */
+function setupGifts() {
+  isPlaying = false;
+  giftStage.classList.remove('lose');
+  giftStage.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const g = document.createElement('div');
+    g.className = 'gift'; g.dataset.idx = i;
+    g.innerHTML = `<div class="gift-bow"></div><div class="gift-knot"></div><div class="gift-lid"><div class="gift-flash"></div></div><div class="gift-body"></div>`;
+    g.addEventListener('click', () => pickGift(i), { once: true });
+    giftStage.appendChild(g);
+  }
+}
+function pickGiftOutcome() {
+  const r = Math.random();
+  if (r < 0.08) return { m: 3, name: 'БОЛЬШОЙ ПРИЗ · x3' };
+  if (r < 0.34) return { m: 1, name: 'ВОЗВРАТ · x1' };
+  return { m: 0, name: '' };
+}
+async function pickGift(pickedIdx) {
+  if (isPlaying) return;
+  isPlaying = true;
+  const gifts = giftStage.querySelectorAll('.gift');
+  playWhoosh();
+  gifts.forEach((g, idx) => {
+    if (idx === pickedIdx) return;
+    if (idx === 0) g.classList.add('slide-left');
+    else if (idx === 2) g.classList.add('slide-right');
+    else g.classList.add('slide-back');
+  });
+  await new Promise(r => setTimeout(r, 700));
+  const picked = gifts[pickedIdx];
+  picked.classList.add('picked');
+  await new Promise(r => setTimeout(r, 900));
+  playLever(); playTone(660,.3,'triangle',.2,0,990);
+  picked.classList.add('opening');
+  await new Promise(r => setTimeout(r, 500));
+  const out = pickGiftOutcome();
+  const win = Math.round(currentBet * out.m);
+  if (out.m > 0) {
+    const fly = document.createElement('div');
+    fly.className = 'prize-fly'; fly.textContent = '+' + win;
+    picked.appendChild(fly);
+    playTone(880,.4,'triangle',.25,0,1400);
+    setTimeout(() => playTone(1320,.4,'triangle',.25), 120);
+  }
+  await new Promise(r => setTimeout(r, 700));
+  showResult(win, out.m, out.name);
+  isPlaying = false;
+  const restore = () => { continueBtn.removeEventListener('click', restore); setTimeout(setupGifts, 100); };
+  continueBtn.addEventListener('click', restore);
+}
+
+/* LOTTO */
+function setupLotto() {
+  isPlaying = false;
+  lottoGrid.classList.remove('lose');
+  lottoGrid.innerHTML = '';
+  lottoStatus.textContent = 'Выберите три карты';
+  const prizeSet = new Set();
+  while (prizeSet.size < 3) prizeSet.add(Math.floor(Math.random() * 6));
+  let openedCount = 0;
+  const state = { prizes: 0 };
+  for (let i = 0; i < 6; i++) {
+    const card = document.createElement('div');
+    card.className = 'lotto-card';
+    const isPrize = prizeSet.has(i);
+    card.innerHTML = `<div class="lotto-back"></div><div class="lotto-front"><div class="lotto-symbol">${isPrize ? '★' : '·'}</div></div>`;
+    card.addEventListener('click', () => {
+      if (isPlaying || card.classList.contains('opened')) return;
+      card.classList.add('opened');
+      if (isPrize) { card.classList.add('prize'); state.prizes++; playTick(); }
+      else { card.classList.add('blank'); playTone(200,.15,'square',.08); }
+      openedCount++;
+      lottoStatus.textContent = `Открыто: ${openedCount} / 3`;
+      if (openedCount === 3) { isPlaying = true; setTimeout(() => resolveLotto(state.prizes), 700); }
+    });
+    lottoGrid.appendChild(card);
+  }
+}
+function resolveLotto(prizes) {
+  let m = 0, name = '';
+  if (prizes === 3) { m = 3; name = 'ТРИ ИЗ ТРЁХ · x3'; }
+  else if (prizes === 2) { m = 0.8; name = 'ДВЕ ИЗ ТРЁХ · x0.8'; }
+  showResult(Math.round(currentBet * m), m, name);
+  const restore = () => { continueBtn.removeEventListener('click', restore); setTimeout(setupLotto, 100); };
+  continueBtn.addEventListener('click', restore);
+}
+
+/* QUIZ */
+const QUIZ_5_POOL = [
+  { q: 'Сколько будет 2 + 2 × 2?', c: '6', w: ['8','4','10'] },
+  { q: 'Ты обгоняешь второго в марафоне. Какое место занимаешь?', c: 'Второе', w: ['Первое','Третье','Последнее'] },
+  { q: 'Отца Мэри пять дочерей: Чача, Чече, Чичи, Чочо. Как зовут пятую?', c: 'Мэри', w: ['Чучу','Чоча','Данных нет'] },
+  { q: 'Сколько сторон у семиугольника?', c: '7', w: ['6','8','9'] },
+  { q: 'Столица Австралии?', c: 'Канберра', w: ['Сидней','Мельбурн','Брисбен'] },
+  { q: 'Сколько будет 100 − 99 + 98 − 97?', c: '2', w: ['1','0','4'] },
+  { q: 'Сколько минут в двух с половиной часах?', c: '150', w: ['120','180','90'] },
+  { q: 'Какое море самое солёное?', c: 'Мёртвое', w: ['Чёрное','Красное','Средиземное'] },
+  { q: 'Сколько дней в високосном году?', c: '366', w: ['365','364','367'] },
+  { q: 'Какой газ преобладает в атмосфере Земли?', c: 'Азот', w: ['Кислород','Углекислый газ','Водород'] },
+  { q: 'Сколько граней у куба?', c: '6', w: ['4','8','12'] },
+  { q: 'Какую планету называют красной?', c: 'Марс', w: ['Венера','Юпитер','Меркурий'] },
+  { q: 'Что тяжелее — килограмм ваты или килограмм железа?', c: 'Равны', w: ['Ваты','Железа','Зависит от условий'] },
+  { q: 'Сколько нулей в миллионе?', c: '6', w: ['5','7','8'] },
+  { q: 'Периметр квадрата со стороной 5?', c: '20', w: ['25','10','15'] },
+  { q: 'Сколько часов в двух сутках?', c: '48', w: ['24','36','72'] },
+  { q: 'Наука о растениях?', c: 'Ботаника', w: ['Зоология','Геология','Астрономия'] },
+  { q: 'Сколько звуков в слове «ёж»?', c: '3', w: ['2','4','5'] },
+  { q: 'Какой металл жидкий при комнатной температуре?', c: 'Ртуть', w: ['Железо','Свинец','Алюминий'] },
+  { q: 'Сколько будет 15% от 200?', c: '30', w: ['15','20','45'] },
+];
+
+const QUIZ_10_POOL = [
+  { q: 'Кто первым полетел в космос?', c: 'Гагарин', w: ['Титов','Терешкова','Армстронг'] },
+  { q: 'Формула поваренной соли?', c: 'NaCl', w: ['H2O','CO2','KCl'] },
+  { q: 'В каком году началась Вторая мировая?', c: '1939', w: ['1941','1914','1945'] },
+  { q: 'Сколько материков на Земле?', c: '6', w: ['5','7','8'] },
+  { q: 'Какой металл жидкий при комнатной температуре?', c: 'Ртуть', w: ['Свинец','Железо','Алюминий'] },
+  { q: 'Кто написал «Евгения Онегина»?', c: 'Пушкин', w: ['Лермонтов','Гоголь','Тургенев'] },
+  { q: 'Столица Германии?', c: 'Берлин', w: ['Мюнхен','Гамбург','Вена'] },
+  { q: 'Какой орган качает кровь?', c: 'Сердце', w: ['Печень','Лёгкие','Почки'] },
+  { q: 'Самая длинная река в мире?', c: 'Амазонка', w: ['Нил','Волга','Янцзы'] },
+  { q: 'Сколько костей у взрослого человека?', c: '206', w: ['180','230','300'] },
+  { q: 'Кто открыл закон тяготения?', c: 'Ньютон', w: ['Эйнштейн','Галилей','Коперник'] },
+  { q: 'Какой элемент обозначается Fe?', c: 'Железо', w: ['Фтор','Фосфор','Франций'] },
+  { q: 'Какая планета ближе всех к Солнцу?', c: 'Меркурий', w: ['Венера','Земля','Марс'] },
+  { q: 'В каком веке была Октябрьская революция?', c: 'XX', w: ['XIX','XVIII','XXI'] },
+  { q: 'Что изучает ботаника?', c: 'Растения', w: ['Животных','Грибы','Минералы'] },
+  { q: 'Сколько струн у классической гитары?', c: '6', w: ['4','5','7'] },
+  { q: 'Кто автор «Гамлета»?', c: 'Шекспир', w: ['Байрон','Диккенс','Толстой'] },
+  { q: 'Химический символ золота?', c: 'Au', w: ['Ag','Go','Gd'] },
+  { q: 'Сколько планет в Солнечной системе?', c: '8', w: ['9','7','10'] },
+  { q: 'Наука о погоде?', c: 'Метеорология', w: ['Геология','Астрономия','Биология'] },
+  { q: 'Кто написал «Преступление и наказание»?', c: 'Достоевский', w: ['Толстой','Чехов','Булгаков'] },
+  { q: 'Самый холодный континент?', c: 'Антарктида', w: ['Африка','Евразия','Австралия'] },
+  { q: 'Сколько часов в сутках?', c: '24', w: ['12','23','26'] },
+  { q: 'Какая страна самая большая по площади?', c: 'Россия', w: ['Канада','Китай','США'] },
+  { q: 'Кто написал «Войну и мир»?', c: 'Толстой', w: ['Пушкин','Достоевский','Чехов'] },
+  { q: 'Какой орган отвечает за зрение?', c: 'Глаз', w: ['Ухо','Нос','Кожа'] },
+  { q: 'Сколько сигм в числе 1000000?', c: '0', w: ['1','2','3'] },
+  { q: 'Какой газ выделяют растения при фотосинтезе?', c: 'Кислород', w: ['Углекислый газ','Азот','Водород'] },
+  { q: 'Сколько согласных букв в русском алфавите?', c: '21', w: ['20','22','23'] },
+  { q: 'Какой металл используется в градусниках?', c: 'Ртуть', w: ['Железо','Алюминий','Медь'] },
+];
+
+const QUIZ_20_POOL = [
+  { q: 'Кто открыл пенициллин?', c: 'Флеминг', w: ['Пастер','Кох','Мечников'] },
+  { q: 'Что означает E = mc²?', c: 'Энергия-масса', w: ['Сила-ускорение','Работа-время','Импульс-скорость'] },
+  { q: 'В каком году распался СССР?', c: '1991', w: ['1989','1993','1985'] },
+  { q: 'Что такое фотон?', c: 'Частица света', w: ['Ядро атома','Электрон','Молекула'] },
+  { q: 'Сколько хромосом у человека?', c: '46', w: ['23','48','44'] },
+  { q: 'Кто написал «Мастера и Маргариту»?', c: 'Булгаков', w: ['Набоков','Пастернак','Солженицын'] },
+  { q: 'Самый лёгкий элемент?', c: 'Водород', w: ['Гелий','Литий','Кислород'] },
+  { q: 'Теорема Пифагора?', c: 'a² + b² = c²', w: ['E = mc²','F = ma','V = IR'] },
+  { q: 'Первый президент США?', c: 'Вашингтон', w: ['Линкольн','Джефферсон','Адамс'] },
+  { q: 'Что такое инфляция?', c: 'Рост цен', w: ['Падение цен','Рост ВВП','Падение зарплат'] },
+  { q: 'Кто автор теории эволюции?', c: 'Дарвин', w: ['Ламарк','Мендель','Линней'] },
+  { q: 'Самый тугоплавкий металл?', c: 'Вольфрам', w: ['Железо','Титан','Платина'] },
+  { q: 'Что такое озон?', c: 'O₃', w: ['O₂','CO₂','H₂O'] },
+  { q: 'Сколько планет земной группы?', c: '4', w: ['2','3','8'] },
+  { q: 'Кто написал «Божественную комедию»?', c: 'Данте', w: ['Петрарка','Боккаччо','Гомер'] },
+  { q: 'Что такое чёрная дыра?', c: 'Объект с огромной гравитацией', w: ['Планета','Астероид','Звезда'] },
+  { q: 'Кто изобрёл радио?', c: 'Попов / Маркони', w: ['Эдисон','Тесла','Белл'] },
+  { q: 'Какой орган вырабатывает инсулин?', c: 'Поджелудочная', w: ['Печень','Почки','Селезёнка'] },
+  { q: 'Что изучает генетика?', c: 'Наследственность', w: ['Клетки','Поведение','Эволюцию'] },
+  { q: 'Сколько струн у скрипки?', c: '4', w: ['5','6','7'] },
+  { q: 'Самая маленькая планета?', c: 'Меркурий', w: ['Марс','Плутон','Венера'] },
+  { q: 'Что такое ВВП?', c: 'Валовой внутренний продукт', w: ['Внешний валютный поток','Валовый валютный показатель','Величина внутренних потерь'] },
+  { q: 'Кто сформулировал периодический закон?', c: 'Менделеев', w: ['Ломоносов','Бутлеров','Зинин'] },
+  { q: 'Какой элемент обозначается Hg?', c: 'Ртуть', w: ['Свинец','Олово','Галлий'] },
+  { q: 'Формула серной кислоты?', c: 'H₂SO₄', w: ['HCl','HNO₃','H₂CO₃'] },
+  { q: 'Что такое ДНК?', c: 'Молекула наследственности', w: ['Витамин','Белок','Жир'] },
+  { q: 'Кто написал «Отцы и дети»?', c: 'Тургенев', w: ['Толстой','Гончаров','Достоевский'] },
+  { q: 'Сколько спутников у Марса?', c: '2', w: ['1','3','0'] },
+  { q: 'Чему равен синус 30°?', c: '0,5', w: ['1','0,707','0'] },
+  { q: 'Какой металл в составе бронзы?', c: 'Медь и олово', w: ['Железо и углерод','Медь и цинк','Серебро и золото'] },
+  { q: 'Кто был первым человеком, ступившим на Луну?', c: 'Армстронг', w: ['Олдрин','Гагарин','Коллинз'] },
+  { q: 'Какая скорость света?', c: '300 000 км/с', w: ['150 000 км/с','600 000 км/с','3 000 000 км/с'] },
+  { q: 'Что такое митохондрия?', c: 'Энергетическая станция клетки', w: ['Ядро клетки','Оболочка','Вирус'] },
+  { q: 'Кто такой Кант?', c: 'Философ', w: ['Химик','Физик','Математик'] },
+  { q: 'Какой год считается началом эпохи Возрождения?', c: 'XIV век', w: ['XII век','XVIII век','X век'] },
+  { q: 'Где находится Эйфелева башня?', c: 'Париж', w: ['Лондон','Берлин','Рим'] },
+  { q: 'Что такое ядерный синтез?', c: 'Слияние ядер', w: ['Распад ядер','Деление атома','Ионизация'] },
+  { q: 'Как называется самая высокая гора?', c: 'Эверест', w: ['Эльбрус','Казбек','Монблан'] },
+  { q: 'Сколько цветов у светофора?', c: '3', w: ['2','4','5'] },
+  { q: 'Что такое «число Авогадро»?', c: '6,022×10²³', w: ['3,14','9,8','1,6×10⁻¹⁹'] },
+];
+
+function shuffleArr(a) {
+  const x = a.slice();
+  for (let i = x.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [x[i],x[j]]=[x[j],x[i]];
+  }
+  return x;
+}
+
+function setupQuizIntro() {
+  isPlaying = false;
+  quizContainer.innerHTML = `
+    <div class="quiz-intro">
+      <div class="quiz-intro-title">ВЫБЕРИТЕ УРОВЕНЬ</div>
+      <div class="quiz-intro-sub">Все ответы должны быть верными</div>
+      <div class="quiz-levels">
+        <button class="quiz-level-btn" data-n="5"><span class="quiz-level-name">5 ВОПРОСОВ</span><span class="quiz-level-info">x1.05</span></button>
+        <button class="quiz-level-btn" data-n="10"><span class="quiz-level-name">10 ВОПРОСОВ</span><span class="quiz-level-info">x1.2</span></button>
+        <button class="quiz-level-btn" data-n="20"><span class="quiz-level-name">20 ВОПРОСОВ</span><span class="quiz-level-info">x2</span></button>
+      </div>
+    </div>`;
+  quizContainer.querySelectorAll('.quiz-level-btn').forEach(b => {
+    b.addEventListener('click', () => startQuiz(parseInt(b.dataset.n)));
+  });
+}
+
+function startQuiz(n) {
+  isPlaying = true;
+  const pool = n===5 ? QUIZ_5_POOL : n===10 ? QUIZ_10_POOL : QUIZ_20_POOL;
+  const questions = shuffleArr(pool).slice(0, Math.min(n, pool.length));
+  const multiplier = n===5 ? 1.05 : n===10 ? 1.2 : 2;
+  let idx = 0;
+
+  function renderQuestion() {
+    const q = questions[idx];
+    const answers = shuffleArr([q.c, ...q.w]);
+    quizContainer.innerHTML = `
+      <div class="quiz-progress"><div class="quiz-progress-fill" style="width:${(idx/n)*100}%"></div></div>
+      <div class="quiz-q-info">Вопрос ${idx+1} / ${n}</div>
+      <div class="quiz-question">${q.q}</div>
+      <div class="quiz-answers" id="quizAnswers"></div>`;
+    const el = $('quizAnswers');
+    answers.forEach(a => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-answer';
+      btn.textContent = a;
+      btn.addEventListener('click', () => chooseAnswer(btn, a === q.c));
+      el.appendChild(btn);
+    });
+  }
+
+  function chooseAnswer(btn, isCorrect) {
+    const el = $('quizAnswers');
+    el.querySelectorAll('.quiz-answer').forEach(b => b.disabled = true);
+    if (isCorrect) {
+      btn.classList.add('correct');
+      playCorrect();
+      setTimeout(() => {
+        idx++;
+        if (idx < n) renderQuestion();
+        else finishQuiz(true, multiplier);
+      }, 900);
+    } else {
+      btn.classList.add('wrong');
+      el.querySelectorAll('.quiz-answer').forEach(b => {
+        if (b.textContent === questions[idx].c) b.classList.add('correct');
+      });
+      playWrong();
+      setTimeout(() => finishQuiz(false, 0), 1300);
+    }
+  }
+
+  renderQuestion();
+}
+
+function finishQuiz(allCorrect, multiplier) {
+  isPlaying = false;
+  if (allCorrect) {
+    showResult(Math.round(currentBet * multiplier), multiplier, `ВСЕ ВЕРНО · x${multiplier}`);
+    const restore = () => { continueBtn.removeEventListener('click', restore); setTimeout(setupQuizIntro, 100); };
+    continueBtn.addEventListener('click', restore);
+  } else {
+    showResult(0, 0, '');
+    const restore = () => {
+      continueBtn.removeEventListener('click', restore);
+      setTimeout(() => {
+        result.classList.remove('show');
+        allScreens.forEach(s => s.classList.remove('active'));
+        menuScreen.classList.add('active');
+        exitBtn.classList.remove('show');
+        activeGame = null;
+      }, 100);
+    };
+    continueBtn.addEventListener('click', restore);
+  }
+}
+
+/* BINGO */
+let bingoState = null;
+function setupBingo() {
+  isPlaying = false;
+  bingoWrap.classList.remove('lose');
+  bingoBalls.innerHTML = '';
+  bingoStatus.textContent = 'Нажмите СТАРТ';
+  bingoCard.innerHTML = '';
+  const nums = shuffleArr([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]);
+  bingoState = { nums, drawn: [], lines: 0 };
+  nums.forEach(n => {
+    const c = document.createElement('div');
+    c.className = 'bingo-cell';
+    c.textContent = n;
+    c.dataset.num = n;
+    bingoCard.appendChild(c);
+  });
+  $('bingoStart').disabled = false;
+  updateJackpotDisplay();
+}
+$('bingoStart').addEventListener('click', startBingo);
+
+async function startBingo() {
+  if (isPlaying || activeGame !== 'bingo' || !bingoState) return;
+  isPlaying = true;
+  $('bingoStart').disabled = true;
+  result.classList.remove('show');
+  bingoWrap.classList.remove('lose');
+  bingoStatus.textContent = 'Шары разыгрываются...';
+  playWhoosh();
+
+  const pool = shuffleArr([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]);
+  const drawsCount = 12;
+  const drawn = [];
+
+  for (let i = 0; i < drawsCount; i++) {
+    await new Promise(r => setTimeout(r, 350));
+    const ball = pool[i];
+    drawn.push(ball);
+    playTick();
+    const ballEl = document.createElement('div');
+    ballEl.className = 'bingo-ball';
+    ballEl.textContent = ball;
+    bingoBalls.appendChild(ballEl);
+    const cell = bingoCard.querySelector(`.bingo-cell[data-num="${ball}"]`);
+    if (cell) cell.classList.add('marked');
+  }
+
+  bingoState.drawn = drawn;
+  const lines = countBingoLines(bingoCard);
+  bingoState.lines = lines;
+  if (lines.length > 0) {
+    lines.forEach(cells => cells.forEach(c => c.classList.add('line-win')));
+    playWin(lines.length >= 2);
+  }
+  await new Promise(r => setTimeout(r, 700));
+
+  let winMult = 0, name = '';
+  if (lines.length >= 1) { winMult = 3; name = 'ЛИНИЯ · x3'; }
+
+  let jackpotWin = 0;
+  if (lines.length >= 2) {
+    jackpotWin = Math.round(JACKPOT);
+    name = 'ДЖЕКПОТ! · 2 ЛИНИИ';
+    JACKPOT = 100;
+    localStorage.setItem('fortuna_jackpot', JACKPOT.toFixed(2));
+    updateJackpotDisplay();
+  }
+
+  const baseWin = Math.round(currentBet * winMult);
+  const totalWin = baseWin + jackpotWin;
+  if (totalWin > 0) {
+    showResult(totalWin, Math.max(winMult, jackpotWin > 0 ? 3 : winMult), name);
+  } else {
+    showResult(0, 0, '');
+  }
+  isPlaying = false;
+
+  const restore = () => {
+    continueBtn.removeEventListener('click', restore);
+    setTimeout(() => {
+      JACKPOT += currentBet * 0.05;
+      localStorage.setItem('fortuna_jackpot', JACKPOT.toFixed(2));
+      setupBingo();
+    }, 100);
+  };
+  continueBtn.addEventListener('click', restore);
+}
+
+function countBingoLines(cardEl) {
+  const cells = Array.from(cardEl.querySelectorAll('.bingo-cell'));
+  const marked = cells.map(c => c.classList.contains('marked'));
+  const linesIdx = [];
+  for (let r = 0; r < 5; r++) linesIdx.push([r*5, r*5+1, r*5+2, r*5+3, r*5+4]);
+  for (let c = 0; c < 5; c++) linesIdx.push([c, c+5, c+10, c+15, c+20]);
+  linesIdx.push([0,6,12,18,24]);
+  linesIdx.push([4,8,12,16,20]);
+  const wins = [];
+  linesIdx.forEach(line => {
+    if (line.every(i => marked[i])) wins.push(line.map(i => cells[i]));
+  });
+  return wins;
+}
+
+/* RPS */
+const MOVES = { rock: 'КАМЕНЬ', scissors: 'НОЖНИЦЫ', paper: 'БУМАГА' };
+const BEATS = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
+let rps = null;
+
+function setupRPS() {
+  isPlaying = false;
+  rps = { playerScore: 0, botScore: 0, round: 0 };
+  $('rpsPlayerScore').textContent = '0';
+  $('rpsBotScore').textContent = '0';
+  $('rpsRoundInfo').textContent = 'Раунд 1 / 3';
+  $('rpsPlayerSide').className = 'rps-side';
+  $('rpsBotSide').className = 'rps-side';
+  $('rpsPlayerSide').innerHTML = '<div class="rps-move empty">?</div>';
+  $('rpsBotSide').innerHTML = '<div class="rps-move empty">?</div>';
+  document.querySelectorAll('.rps-btn').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+}
+
+document.querySelectorAll('.rps-btn').forEach(b => {
+  b.addEventListener('click', () => playRPSRound(b.dataset.move));
+});
+
+async function playRPSRound(playerMove) {
+  if (isPlaying || activeGame !== 'rps') return;
+  isPlaying = true;
+  result.classList.remove('show');
+  document.querySelectorAll('.rps-btn').forEach(b => { b.disabled = true; b.style.opacity = '.4'; });
+
+  const botMove = ['rock','scissors','paper'][Math.floor(Math.random() * 3)];
+  const pSide = $('rpsPlayerSide');
+  const bSide = $('rpsBotSide');
+  pSide.className = 'rps-side dealing';
+  bSide.className = 'rps-side dealing';
+  pSide.innerHTML = '<div class="rps-move">...</div>';
+  bSide.innerHTML = '<div class="rps-move">...</div>';
+  playWhoosh();
+
+  for (let i = 0; i < 8; i++) {
+    await new Promise(r => setTimeout(r, 80));
+    pSide.querySelector('.rps-move').textContent = MOVES[['rock','scissors','paper'][i%3]];
+    bSide.querySelector('.rps-move').textContent = MOVES[['rock','scissors','paper'][(i+1)%3]];
+    playTick();
+  }
+
+  pSide.className = 'rps-side';
+  bSide.className = 'rps-side';
+  pSide.innerHTML = `<div class="rps-move">${MOVES[playerMove]}</div>`;
+  bSide.innerHTML = `<div class="rps-move">${MOVES[botMove]}</div>`;
+
+  if (playerMove === botMove) {
+    pSide.classList.add('winner');
+    bSide.classList.add('winner');
+  } else if (BEATS[playerMove] === botMove) {
+    rps.playerScore++;
+    $('rpsPlayerScore').textContent = rps.playerScore;
+    pSide.classList.add('winner');
+    bSide.classList.add('loser');
+    playCorrect();
+  } else {
+    rps.botScore++;
+    $('rpsBotScore').textContent = rps.botScore;
+    pSide.classList.add('loser');
+    bSide.classList.add('winner');
+    playWrong();
+  }
+
+  rps.round++;
+  await new Promise(r => setTimeout(r, 1100));
+
+  if (rps.round >= 3) {
+    finishRPS();
+  } else {
+    $('rpsRoundInfo').textContent = `Раунд ${rps.round + 1} / 3`;
+    document.querySelectorAll('.rps-btn').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+    isPlaying = false;
+  }
+}
+
+function finishRPS() {
+  isPlaying = false;
+  const wins = rps.playerScore;
+  let m = 0, name = '';
+  if (wins === 3) { m = 3; name = 'ТРИ ПОБЕДЫ · x3'; }
+  else if (wins === 2) { m = 1.5; name = 'ДВЕ ПОБЕДЫ · x1.5'; }
+  else if (wins === 1) { m = 0.1; name = 'ОДНА ПОБЕДА · x0.1'; }
+  const win = Math.round(currentBet * m);
+  showResult(win, m, name);
+
+  const restore = () => { continueBtn.removeEventListener('click', restore); setTimeout(setupRPS, 100); };
+  continueBtn.addEventListener('click', restore);
+}
+</script>
+</body>
+</html>
